@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
     struct sockaddr_in addr;
     struct hostent *hp;
     int fd;
+    char username[1024];
+    int name_len;
     char buf[1024];
     pthread_t t_rcv;
     struct data d;
@@ -86,8 +88,16 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    printf("USERNAME? :");
+    fgets(username, 1024, stdin);
+    name_len = strlen(username);
+    username[name_len-1] = '\0';
+    write(fd, username, 1024);
+
     d.fd = fd;
     pthread_create(&t_rcv, NULL, receiver, &d);
+
+
 
     /*
      *  入力されたデータをソケットに書き込んでサーバーに送り、

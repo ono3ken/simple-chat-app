@@ -31,14 +31,17 @@ void *chat_thread(void *arg)
     char buf[1024];
     char ret_str[1024];
     int fd;
+    char username[1024];
 
     fd = fd_client[id_];
+
+    read(fd, username, 1024);
 
     do
     {
         read(fd, buf, 1024);
 
-        sprintf(ret_str, "Client %d:%s", id_, buf);
+        sprintf(ret_str, "%s :%s", username, buf);
 
         /* 変換したデータをクライアントに送り返す */
         for (i = 0; i < MAX_CLIENT; i++)
