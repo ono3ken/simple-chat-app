@@ -18,22 +18,28 @@
 #define HOST "localhost"
 #define PORT 8500
 
+// クライアント終了フラグ
 int flag_end = 0;
 
+// 受信用スレッドに渡すデータ
 struct data {
     int fd;
 };
 
+// メッセージを受信し，標準出力に表示するスレッド．
 void *receiver(void *arg)
 {
     int fd = ((struct data *)arg)->fd;
     char buf[1024];
 
+    // クライアント終了フラグが無効の間は読み取り続ける．
     while (!flag_end) {
         if (read(fd, buf, 1024) > 0)
         {
         printf("%s", buf);
         }
+
+        // 安定のため0.5秒スリープさせる．
         sleep(0.5);
     }
 
@@ -88,12 +94,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    // ユーザ名を入力させ，サーバーに送信．
     printf("USERNAME? :");
     fgets(username, 1024, stdin);
     name_len = strlen(username);
     username[name_len-1] = '\0';
     write(fd, username, 1024);
 
+    // サーバーからのメッセージ受信用のスレッドを実行．
     d.fd = fd;
     pthread_create(&t_rcv, NULL, receiver, &d);
 
@@ -113,6 +121,8 @@ int main(int argc, char *argv[])
 
     } while (strcmp(buf, "QUIT\n") != 0);
 
+    // QUITが入力されたらクライアントの終了の旨のフラグを有効にし，
+    // 受信用スレッドの終了を待つ．
     flag_end = 1;    
     pthread_join(t_rcv, NULL);
     close(fd);

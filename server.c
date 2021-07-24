@@ -14,14 +14,19 @@
 #include <pthread.h>
 
 #define PORT 8500
+// 最大クライアント数
 #define MAX_CLIENT 100
 
+// クライアント処理スレッドに渡すデータ
 struct data
 {
     int id_;
     int *fd_client;
 };
 
+// クライアントごとに割り当てられるスレッド．
+// クライアントからの入力を受け取り，
+// ユーザ名を付加したものを他のクライアント全員に転送．
 void *chat_thread(void *arg)
 {
     int id_ = ((struct data *)arg)->id_;
@@ -35,15 +40,18 @@ void *chat_thread(void *arg)
 
     fd = fd_client[id_];
 
+    // ユーザ名を取得．
     read(fd, username, 1024);
 
     do
     {
+        // メッセージを取得
         read(fd, buf, 1024);
 
+        // ユーザ名を付加．
         sprintf(ret_str, "%s :%s", username, buf);
 
-        /* 変換したデータをクライアントに送り返す */
+        /* 変換したデータを自分以外のクライアントに送り返す */
         for (i = 0; i < MAX_CLIENT; i++)
         {
             if ((i != id_) && (fd_client[i] > 0))
@@ -111,6 +119,7 @@ int main()
         exit(1);
     }
 
+    // MAX_CLIENTの数だけ接続を待ち続ける．
     for (i = 0; i < MAX_CLIENT; i++)
     {
         len = sizeof(caddr[i]);
@@ -121,10 +130,10 @@ int main()
             exit(1);
         }
 
+        // 接続完了後，クライアントに紐づけられた処理用のスレッドを実行．
         d[i].id_ = i;
         d[i].fd_client = fd_client;
         d[i].fd_client[i] = fd_client[i];
-        
         pthread_create(&t[i], NULL, chat_thread, &d[i]);
     }
 
