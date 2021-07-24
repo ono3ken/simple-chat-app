@@ -14,36 +14,25 @@
 #include <pthread.h>
 
 #define PORT 8500
-#define NUM_CLIENT 2
+#define MAX_CLIENT 100
 
 struct data
 {
     int id_;
-    int fd_listener;
     int *fd_client;
 };
 
 void *chat_thread(void *arg)
 {
     int id_ = ((struct data *)arg)->id_;
-    int fd_listener = ((struct data *)arg)->fd_listener;
     int *fd_client = ((struct data *)arg)->fd_client;
 
     int i;
     char buf[1024];
     char ret_str[1024];
     int fd;
-    struct sockaddr_in caddr;
-    int len;
 
-    len = sizeof(caddr);
-    if ((fd = accept(fd_listener, (struct sockaddr *)&caddr, &len)) < 0)
-    {
-        perror("accept");
-        exit(1);
-    }
-
-    fd_client[id_] = fd;
+    fd = fd_client[id_];
 
     do
     {
@@ -52,7 +41,7 @@ void *chat_thread(void *arg)
         sprintf(ret_str, "Client %d:%s", id_, buf);
 
         /* 変換したデータをクライアントに送り返す */
-        for (i = 0; i < NUM_CLIENT; i++)
+        for (i = 0; i < MAX_CLIENT; i++)
         {
             if ((i != id_) && (fd_client[i] > 0))
             {
@@ -64,6 +53,7 @@ void *chat_thread(void *arg)
 
     /* 通信が終わったらソケットを閉じる */
     close(fd);
+    fd_client[id_] = -1;
 
     return NULL;
 }
@@ -73,9 +63,11 @@ int main()
     int i;
     int fd_listener;
     struct sockaddr_in saddr;
-    struct data d[NUM_CLIENT];
-    int fd_client[NUM_CLIENT];
-    pthread_t t[NUM_CLIENT];
+    struct data d[MAX_CLIENT];
+    int fd_client[MAX_CLIENT];
+    struct sockaddr_in caddr[MAX_CLIENT];
+    int len;
+    pthread_t t[MAX_CLIENT];
 
     /*
      *  ストリーム型ソケット作る．
@@ -116,17 +108,24 @@ int main()
         exit(1);
     }
 
-    for (i = 0; i < NUM_CLIENT; i++)
+    for (i = 0; i < MAX_CLIENT; i++)
     {
+        len = sizeof(caddr[i]);
+        fd_client[i] = accept(fd_listener, (struct sockaddr *)&caddr[i], &len);
+        if (fd_client[i] < 0)
+        {
+            perror("accept");
+            exit(1);
+        }
+
         d[i].id_ = i;
-        d[i].fd_listener = fd_listener;
         d[i].fd_client = fd_client;
+        d[i].fd_client[i] = fd_client[i];
         
         pthread_create(&t[i], NULL, chat_thread, &d[i]);
     }
 
-    pthread_join(t[0], NULL);
-    pthread_join(t[1], NULL);
+    
 
     close(fd_listener);
 
